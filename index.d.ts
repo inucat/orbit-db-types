@@ -12,7 +12,7 @@ declare module "@orbitdb/core" {
     address: string;
     close(): Promise<void>;
     drop(): Promise<void>;
-    events: EventEmitter;
+    events: EventEmitter<{ update: [entry: LogEntry] }>;
     access: AccessController;
     log: Log;
   };
@@ -124,9 +124,9 @@ declare module "@orbitdb/core" {
 
   export function useDatabaseType(type: { type: string }): void;
 
-  export function IPFSAccessController(args: {
-    write: string[];
-    storage: Storage;
+  export function IPFSAccessController(options: {
+    write?: string[];
+    storage?: Storage;
   }): (args: {
     orbitdb: OrbitDB;
     identities: IdentitiesType;
@@ -180,6 +180,12 @@ declare module "@orbitdb/core" {
     type: string;
     AccessController?: typeof AccessControllerGenerator;
     syncAutomatically?: boolean;
+    sync?: boolean;
+    Database?: Database;
+    headsStorage?: Storage;
+    entryStorage?: Storage;
+    indexStorage?: Storage;
+    referencesCount?: number;
   };
 
   export type Clock = {
