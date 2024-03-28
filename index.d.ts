@@ -15,6 +15,7 @@ declare module "@orbitdb/core" {
     events: EventEmitter<{ update: [entry: LogEntry] }>;
     access: AccessController;
     log: Log;
+    identity?: Identity;
   };
 
   export function Database(args: {
@@ -33,6 +34,8 @@ declare module "@orbitdb/core" {
     onUpdate?: () => void;
   }): Promise<Database>;
 
+  export function Documents<T = Object>({ indexBy: string }): any;
+
   module Databases {
     type Events = Database & {
       add: (value: any) => Promise<string>;
@@ -47,21 +50,27 @@ declare module "@orbitdb/core" {
       all: () => Promise<[hash: string, value: string][]>;
     };
 
-    type Documents = Database & {
-      put: (doc: Object) => Promise<string>;
-      all: () => Promise<[string, string, string][]>;
+    type Documents<T = Object> = Database & {
+      put: (doc: T) => Promise<string>;
+      all: () => Promise<{ hash: string; key: string; value: T }[]>;
       del: (key: string) => Promise<string>;
-      get: (key: string) => Promise<Object | null>;
+      get: (key: string) => Promise<T | null>;
       iterator: (filters?: {
         amount?: string;
-      }) => AsyncGenerator<{ hash: any; key: any; value: any }, void, unknown>;
-      query: (findFn: (doc: any) => WithImplicitCoercion<boolean>) => [];
+      }) => AsyncGenerator<
+        { hash: string; key: string; value: T },
+        void,
+        unknown
+      >;
+      query: (
+        findFn: (doc: any) => WithImplicitCoercion<boolean>
+      ) => Promise<Array>;
     };
 
     type KeyValue<T = any> = Database & {
       put: (key: string, value: T) => Promise<string>;
       del: (key: string) => Promise<any>;
-      get: (key: string) => Promise<T>;
+      get: (key: string) => Promise<T | null>;
       all: () => Promise<{ key: string; value: T; hash: string }[]>;
       iterator: (filters?: {
         amount?: string;
@@ -127,6 +136,7 @@ declare module "@orbitdb/core" {
   }): Promise<AccessController>;
 
   export class AccessController {
+    write: string[];
     type: string;
     address: string;
     canAppend: (entry: LogEntry) => Promise<boolean>;
@@ -134,21 +144,34 @@ declare module "@orbitdb/core" {
 
   export function useDatabaseType(type: { type: string }): void;
 
-  export function IPFSAccessController(options: {
+  export function OrbitDBAccessController(options?: {
     write?: string[];
-    storage?: Storage;
   }): (args: {
     orbitdb: OrbitDB;
     identities: IdentitiesType;
     address?: string;
   }) => Promise<
     AccessController & {
-      type: "ipfs";
-      address: string;
-      write: string[];
-      canAppend: (entry: LogEntry) => Promise<boolean>;
+      type: "orbitdb";
+      capabilities: () => Promise<any>;
+      close: () => Promise<void>;
+      drop: () => Promise<void>;
+      get: (capability: string) => Promise<Array<any>>;
+      grant: (capability: string, key: string) => Promise<void>;
+      hasCapability: (capability: string, key: string) => Promise<boolean>;
+      revoke: (capability: string, key: string) => Promise<void>;
     }
   >;
+
+  export function IPFSAccessController(options?: {
+    write?: string[];
+    storage?: Storage;
+  }): (args: {
+    orbitdb: OrbitDB;
+    identities: IdentitiesType;
+    address?: string;
+  }) => Promise<AccessController & { type: "ipfs" }>;
+
   export function Identities(args: {
     keystore?: KeyStoreType;
     path?: string;
@@ -193,7 +216,7 @@ declare module "@orbitdb/core" {
     AccessController?: typeof AccessControllerGenerator;
     syncAutomatically?: boolean;
     sync?: boolean;
-    Database?: Database;
+    Database?: Documents;
     headsStorage?: Storage;
     entryStorage?: Storage;
     indexStorage?: Storage;
