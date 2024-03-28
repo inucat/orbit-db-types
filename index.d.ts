@@ -1,6 +1,6 @@
 declare module "@orbitdb/core" {
   import EventEmitter from "events";
-  import type { Helia } from "helia";
+  import type { Helia, HeliaInit, HeliaLibp2p } from "helia";
 
   export type Database = {
     type: string;
@@ -34,7 +34,7 @@ declare module "@orbitdb/core" {
   }): Promise<Database>;
 
   module Databases {
-    export type Events = Database & {
+    type Events = Database & {
       add: (value: any) => Promise<string>;
       get: (hash: string) => Promise<any | null>;
       iterator: <TReturn = any, TNext = unknown>(filters?: {
@@ -47,7 +47,7 @@ declare module "@orbitdb/core" {
       all: () => Promise<[hash: string, value: string][]>;
     };
 
-    export type Documents = Database & {
+    type Documents = Database & {
       put: (doc: Object) => Promise<string>;
       all: () => Promise<[string, string, string][]>;
       del: (key: string) => Promise<string>;
@@ -56,6 +56,20 @@ declare module "@orbitdb/core" {
         amount?: string;
       }) => AsyncGenerator<{ hash: any; key: any; value: any }, void, unknown>;
       query: (findFn: (doc: any) => WithImplicitCoercion<boolean>) => [];
+    };
+
+    type KeyValue<T = any> = Database & {
+      put: (key: string, value: T) => Promise<string>;
+      del: (key: string) => Promise<any>;
+      get: (key: string) => Promise<T>;
+      all: () => Promise<{ key: string; value: T; hash: string }[]>;
+      iterator: (filters?: {
+        amount?: string;
+      }) => AsyncGenerator<
+        { key: string; value: T; hash: string },
+        void,
+        unknown
+      >;
     };
   }
 
@@ -79,7 +93,7 @@ declare module "@orbitdb/core" {
     id: string;
     open: (
       address: string,
-      OrbitDBDatabaseOptions?
+      params?: OrbitDBDatabaseOptions
     ) => ReturnType<typeof Database>;
     stop;
     ipfs;
@@ -106,11 +120,7 @@ declare module "@orbitdb/core" {
     traverse: () => AsyncGenerator<LogEntry, void, unknown>;
   };
 
-  export function AccessControllerGenerator({
-    orbitdb,
-    identities,
-    address,
-  }: {
+  export function AccessControllerGenerator(options: {
     orbitdb: OrbitDB;
     identities: IdentitiesType;
     address?: string;
@@ -130,13 +140,15 @@ declare module "@orbitdb/core" {
   }): (args: {
     orbitdb: OrbitDB;
     identities: IdentitiesType;
-    address: string;
-  }) => Promise<{
-    type: "ipfs";
-    address: string;
-    write: string[];
-    canAppend: (entry: LogEntry) => Promise<boolean>;
-  }>;
+    address?: string;
+  }) => Promise<
+    AccessController & {
+      type: "ipfs";
+      address: string;
+      write: string[];
+      canAppend: (entry: LogEntry) => Promise<boolean>;
+    }
+  >;
   export function Identities(args: {
     keystore?: KeyStoreType;
     path?: string;
@@ -177,7 +189,7 @@ declare module "@orbitdb/core" {
   export function ComposedStorage(...args: Storage[]): Promise<Storage>;
 
   export type OrbitDBDatabaseOptions = {
-    type: string;
+    type?: string;
     AccessController?: typeof AccessControllerGenerator;
     syncAutomatically?: boolean;
     sync?: boolean;
