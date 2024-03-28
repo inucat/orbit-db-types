@@ -15,7 +15,7 @@ declare module "@orbitdb/core" {
     events: EventEmitter<{ update: [entry: LogEntry] }>;
     access: AccessController;
     log: Log;
-    identity?: Identity;
+    identity: Identity;
   };
 
   export function Database(args: {
@@ -63,8 +63,8 @@ declare module "@orbitdb/core" {
         unknown
       >;
       query: (
-        findFn: (doc: any) => WithImplicitCoercion<boolean>
-      ) => Promise<Array>;
+        findFn: (doc: T) => WithImplicitCoercion<boolean>
+      ) => Promise<T[]>;
     };
 
     type KeyValue<T = any> = Database & {
